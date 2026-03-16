@@ -26,34 +26,45 @@
             padding: 1.5rem;
             border-radius: 2rem;
             box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-            border: 8px solid #ffdde1;
+            border: 6px solid #ffdde1;
             text-align: center;
             width: 100%;
             max-width: 800px;
         }
 
+        /* 核心：確保所有位數橫向一排 */
         .slot-machine-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-            gap: 8px;
+            display: flex;
+            justify-content: center;
+            gap: 4px;
             background: #333;
-            padding: 1rem;
+            padding: 8px;
             border-radius: 1rem;
             margin: 1.5rem 0;
             border: 4px solid #ffd700;
+            width: 100%;
         }
 
         .reel-container {
+            flex: 1;
+            min-width: 0;
             display: flex;
             flex-direction: column;
+            gap: 5px;
         }
 
         .reel {
-            height: 70px;
+            width: 100%;
+            height: 50px;
             background: white;
-            border-radius: 8px;
+            border-radius: 4px;
             overflow: hidden;
             position: relative;
+        }
+
+        @media (min-width: 640px) {
+            .reel { height: 80px; }
+            .digit { font-size: 2.5rem !important; height: 80px !important; }
         }
 
         .number-strip {
@@ -65,11 +76,11 @@
         }
 
         .digit {
-            height: 70px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.8rem;
+            font-size: 1.2rem; /* 預設小字以適應多位數 */
             font-weight: bold;
             color: #ff4757;
         }
@@ -78,19 +89,22 @@
             background: #ff4757;
             color: white;
             width: 100%;
-            padding: 6px 0;
-            margin-top: 8px;
-            border-radius: 6px;
+            padding: 5px 0;
+            border-radius: 4px;
             font-weight: bold;
-            font-size: 0.75rem;
+            font-size: 10px; /* 手機版極小字 */
             cursor: pointer;
             border: none;
             box-shadow: 0 3px 0 #c0392b;
             white-space: nowrap;
         }
 
+        @media (min-width: 640px) {
+            .btn-individual { font-size: 0.8rem; padding: 8px 0; }
+        }
+
         .btn-individual:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #c0392b; }
-        .btn-individual:disabled { background: #ccc; box-shadow: 0 3px 0 #999; cursor: not-allowed; }
+        .btn-individual:disabled { background: #ccc; box-shadow: 0 3px 0 #999; cursor: not-allowed; opacity: 0.7; }
 
         .title { font-family: 'ZCOOL KuaiLe', cursive; color: #ff4757; font-size: 1.8rem; }
         
@@ -100,7 +114,6 @@
 
         @keyframes bounceIn {
             0% { transform: scale(0.3); opacity: 0; }
-            50% { transform: scale(1.05); opacity: 1; }
             100% { transform: scale(1); opacity: 1; }
         }
 
@@ -121,42 +134,42 @@
 </head>
 <body>
 
-<div class="container-box" id="mainContainer">
-    <!-- 設定介面 -->
+<div class="container-box">
+    <!-- 設定階段 -->
     <div id="setupView" class="config-ui">
-        <h2 class="title text-center">抽獎客製化設定</h2>
+        <h2 class="title text-center">慶生拉霸配置</h2>
         <div class="flex flex-col">
-            <label class="text-gray-600 font-bold mb-1">對象名字：</label>
+            <label class="text-gray-600 font-bold mb-1">主角名字：</label>
             <input type="text" id="targetName" placeholder="例如：映潔" value="映潔">
         </div>
         <div class="flex flex-col">
-            <label class="text-gray-600 font-bold mb-1">抽獎位數 (1-10)：</label>
+            <label class="text-gray-600 font-bold mb-1">金額位數 (1-10)：</label>
             <select id="digitCount" onchange="updateVipVisibility()">
-                <!-- JS 動態生成選項 -->
+                <!-- JS 動態生成 -->
             </select>
         </div>
         <div id="vipOption" class="flex items-center gap-2">
             <input type="checkbox" id="lockFirstDigit" checked>
-            <label for="lockFirstDigit" class="text-pink-600 text-sm font-bold cursor-pointer">首位固定為 1 (確保金額預期)</label>
+            <label for="lockFirstDigit" class="text-pink-600 text-sm font-bold cursor-pointer">首位固定為 1 (保底必中)</label>
         </div>
-        <button onclick="enterGame()" class="bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition shadow-lg mt-2">開始配置</button>
+        <button onclick="enterGame()" class="bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition shadow-lg mt-2">進入拉霸模式</button>
     </div>
 
-    <!-- 遊戲介面 -->
+    <!-- 遊戲階段 -->
     <div id="gameView" class="hidden">
-        <div class="title" id="displayTitle">生日幸運拉霸 ❤</div>
-        <p class="text-gray-600" id="displaySubtitle"></p>
+        <div class="title">生日幸運拉霸 ❤</div>
+        <p class="text-gray-600 mb-2" id="displaySubtitle"></p>
         
         <div class="slot-machine-grid" id="slotGrid"></div>
 
         <div id="resultArea" class="hidden mt-4 result-animation">
-            <div class="text-xl md:text-2xl font-bold text-pink-600 mb-2">
+            <div class="text-xl font-bold text-pink-600 mb-2">
                 🎉 恭喜<span id="resName"></span>獲得現金：$<span id="amount">0</span> 元！ 🎉
             </div>
-            <div class="text-3xl font-extrabold text-red-500 tracking-widest">🎂 生日快樂 🎂</div>
+            <div class="text-2xl font-extrabold text-red-500 tracking-widest">🎂 生日快樂 🎂</div>
         </div>
 
-        <button onclick="resetToSetup()" class="mt-6 text-gray-400 underline text-sm">重新設定條件</button>
+        <button onclick="resetToSetup()" class="mt-8 text-gray-400 underline text-xs">重新設定條件</button>
     </div>
 </div>
 
@@ -166,10 +179,9 @@
     const slotGrid = document.getElementById('slotGrid');
     const digitSelect = document.getElementById('digitCount');
     
-    const DIGIT_HEIGHT = 70;
     const LABELS = ["十億", "億", "千萬", "百萬", "十萬", "萬", "千", "百", "十", "個"];
 
-    // 初始化下拉選單 1-10
+    // 初始化選項
     for(let i=1; i<=10; i++) {
         const opt = document.createElement('option');
         opt.value = i;
@@ -183,20 +195,18 @@
 
     function updateVipVisibility() {
         const count = parseInt(digitSelect.value);
-        const vip = document.getElementById('vipOption');
-        // 位數大於 1 位時才提供保底選項
-        vip.style.display = (count > 1) ? "flex" : "none";
+        document.getElementById('vipOption').style.display = (count > 1) ? "flex" : "none";
     }
 
     function enterGame() {
-        config.name = document.getElementById('targetName').value || "親愛的";
+        config.name = document.getElementById('targetName').value || "主角";
         config.digits = parseInt(digitSelect.value);
         config.lockFirst = document.getElementById('lockFirstDigit').checked && config.digits > 1;
         
         setupView.classList.add('hidden');
         gameView.classList.remove('hidden');
         
-        document.getElementById('displaySubtitle').innerText = `${config.name}，挑戰妳的生日手氣！`;
+        document.getElementById('displaySubtitle').innerText = `${config.name}，抽個大紅包吧！`;
         document.getElementById('resName').innerText = config.name;
         
         initGame();
@@ -207,7 +217,6 @@
         results = new Array(config.digits).fill(null);
         document.getElementById('resultArea').classList.add('hidden');
         
-        // 取得正確的位數標籤
         const currentLabels = LABELS.slice(LABELS.length - config.digits);
 
         for (let i = 0; i < config.digits; i++) {
@@ -221,12 +230,13 @@
             strip.className = 'number-strip';
             strip.id = `strip-${i}`;
             
-            for (let r = 0; r < 50; r++) { // 減少重複次數優化 10 位數時的記憶體
+            // 生成數字
+            for (let r = 0; r < 40; r++) {
                 for (let d = 0; d <= 9; d++) {
-                    const digitDiv = document.createElement('div');
-                    digitDiv.className = 'digit';
-                    digitDiv.innerText = d;
-                    strip.appendChild(digitDiv);
+                    const dDiv = document.createElement('div');
+                    dDiv.className = 'digit';
+                    dDiv.innerText = d;
+                    strip.appendChild(dDiv);
                 }
             }
             
@@ -253,31 +263,28 @@
         
         const btn = document.getElementById(`btn-${idx}`);
         const strip = document.getElementById(`strip-${idx}`);
+        const h = document.querySelector('.reel').offsetHeight;
         
         btn.disabled = true;
         const target = (fixedValue !== null) ? fixedValue : Math.floor(Math.random() * 10);
         results[idx] = target;
         
-        const baseRounds = 20; 
-        const extraRounds = idx * 2;
-        const move = ((baseRounds + extraRounds) * 10 + target) * DIGIT_HEIGHT;
-        
-        strip.style.transition = 'transform 2.2s cubic-bezier(0.15, 0, 0.15, 1)';
+        const move = (300 + target) * h;
+        strip.style.transition = 'transform 2.5s cubic-bezier(0.15, 0, 0.15, 1)';
         strip.style.transform = `translateY(-${move}px)`;
 
-        setTimeout(() => checkFinished(), 2300);
+        setTimeout(() => checkFinished(), 2600);
     }
 
     function checkFinished() {
         if (results.every(r => r !== null)) {
-            const rawAmount = results.join('');
-            document.getElementById('amount').innerText = Number(rawAmount).toLocaleString();
+            document.getElementById('amount').innerText = Number(results.join('')).toLocaleString();
             document.getElementById('resultArea').classList.remove('hidden');
             
-            const end = Date.now() + 4 * 1000;
+            const end = Date.now() + 3000;
             (function frame() {
-                confetti({ particleCount: 5, angle: 60, spread: 65, origin: { x: 0 }, colors: ['#ff4757', '#ffd700'] });
-                confetti({ particleCount: 5, angle: 120, spread: 65, origin: { x: 1 }, colors: ['#ff4757', '#ffd700'] });
+                confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#ff4757', '#ffd700'] });
+                confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#ff4757', '#ffd700'] });
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
         }
