@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>萬用客製化幸運拉霸機 Pro</title>
+    <title>萬用客製化幸運拉霸機 Pro + 音效版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
@@ -116,7 +116,6 @@
         input, select { padding: 0.7rem; border: 2px solid #ffdde1; border-radius: 0.8rem; outline: none; transition: border 0.3s; }
         input:focus { border-color: var(--primary-color); }
 
-        /* 旋轉動畫狀態 */
         .is-spinning {
             animation: blurText 0.1s infinite alternate;
         }
@@ -138,6 +137,24 @@
         }
         .main-action-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #1e8449; }
         .main-action-btn.stop { background: #e67e22; box-shadow: 0 5px 0 #d35400; }
+
+        .history-section {
+            margin-top: 2rem;
+            text-align: left;
+            border-top: 2px dashed #ffdde1;
+            padding-top: 1rem;
+        }
+        .history-item {
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            border: 1px solid #fff;
+        }
     </style>
 </head>
 <body>
@@ -190,6 +207,18 @@
                 <span id="amount">0</span> <span class="resUnit">元</span>
             </div>
             <div class="text-xl font-bold text-orange-500" id="finalWishes"></div>
+            <button onclick="initGame()" class="mt-2 text-blue-500 text-sm font-bold">再抽一次</button>
+        </div>
+
+        <!-- 歷史紀錄區 -->
+        <div class="history-section">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-gray-500">📜 抽獎紀錄</h3>
+                <button id="clearBtn" onclick="handleClearHistory()" class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded hover:bg-red-100 hover:text-red-500 transition-all">清空紀錄</button>
+            </div>
+            <div id="historyList">
+                <p class="text-center text-gray-400 text-xs py-4">目前尚無紀錄</p>
+            </div>
         </div>
 
         <button onclick="resetToSetup()" class="mt-6 text-gray-400 underline text-xs">返回修改設定</button>
@@ -197,16 +226,75 @@
 </div>
 
 <script>
+    // --- 音效引擎 (Web Audio API) ---
+    const AudioEngine = {
+        ctx: null,
+        init() {
+            if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        },
+        // 短促滴答聲 (轉動時)
+        playTick() {
+            this.init();
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.1);
+        },
+        // 敲擊聲 (停止時)
+        playStop() {
+            this.init();
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+            gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.3);
+        },
+        // 中獎琶音 (結算時)
+        playWin() {
+            this.init();
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            notes.forEach((freq, i) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.1);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime + i * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.1 + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(this.ctx.currentTime + i * 0.1);
+                osc.stop(this.ctx.currentTime + i * 0.1 + 0.4);
+            });
+        }
+    };
+
     const setupView = document.getElementById('setupView');
     const gameView = document.getElementById('gameView');
     const slotGrid = document.getElementById('slotGrid');
     const digitSelect = document.getElementById('digitCount');
     const masterBtn = document.getElementById('masterBtn');
+    const historyList = document.getElementById('historyList');
+    const clearBtn = document.getElementById('clearBtn');
     
     const LABELS = ["十億", "億", "千萬", "百萬", "十萬", "萬", "千", "百", "十", "個"];
     let config = { topic: "", name: "", unit: "", digits: 5, lockFirst: true };
     let results = [];
     let isMasterSpinning = false;
+    let historyData = [];
+    let isProcessingResult = false; 
+    let clearConfirmMode = false;
 
     // 初始化下拉
     for(let i=1; i<=10; i++) {
@@ -221,6 +309,7 @@
     }
 
     function enterGame() {
+        AudioEngine.init(); // 啟動音效上下文
         config.topic = document.getElementById('eventTopic').value || "活動";
         config.name = document.getElementById('targetName').value || "主角";
         config.unit = document.getElementById('unitName').value || "元";
@@ -233,7 +322,7 @@
         document.getElementById('mainTitleDisplay').innerText = `${config.topic}幸運拉霸 ❤`;
         document.getElementById('displaySubtitle').innerText = `祝 ${config.name} ${config.topic}快樂！`;
         document.getElementById('resName').innerText = config.name;
-        document.getElementById('resTopic').innerText = config.topic + "獎勵";
+        document.getElementById('resTopic').innerText = config.topic + "獎項";
         document.querySelectorAll('.resUnit').forEach(el => el.innerText = config.unit);
         document.getElementById('finalWishes').innerText = `✨ ${config.topic}大吉 ✨`;
         
@@ -244,8 +333,11 @@
         slotGrid.innerHTML = '';
         results = new Array(config.digits).fill(null);
         isMasterSpinning = false;
+        isProcessingResult = false; 
         masterBtn.innerText = "一鍵全部開始";
         masterBtn.className = "main-action-btn";
+        masterBtn.disabled = false;
+        masterBtn.style.display = 'block';
         document.getElementById('resultArea').classList.add('hidden');
         
         const currentLabels = LABELS.slice(LABELS.length - config.digits);
@@ -283,8 +375,8 @@
     }
 
     function toggleMasterSpin() {
+        AudioEngine.playTick();
         if (!isMasterSpinning) {
-            // 開始全部旋轉
             isMasterSpinning = true;
             masterBtn.innerText = "全部停止！";
             masterBtn.classList.add('stop');
@@ -292,13 +384,12 @@
             for (let i = 0; i < config.digits; i++) {
                 const strip = document.getElementById(`strip-${i}`);
                 strip.classList.add('is-spinning');
-                // 無限滾動效果
                 strip.style.transition = 'transform 0.5s linear';
                 strip.style.transform = `translateY(-${20 * getReelHeight()}px)`;
                 
-                // 為了流暢感，每隔一段時間重置位置的監聽
                 strip.ontransitionend = () => {
                     if (results[i] === null) {
+                        AudioEngine.playTick(); // 每轉一圈響一次
                         strip.style.transition = 'none';
                         strip.style.transform = 'translateY(0)';
                         setTimeout(() => {
@@ -309,7 +400,6 @@
                 };
             }
         } else {
-            // 按序停止
             isMasterSpinning = false;
             masterBtn.disabled = true;
             stopSequentially(0);
@@ -344,30 +434,88 @@
         strip.style.transition = 'transform 2s cubic-bezier(0.15, 0, 0.15, 1)';
         strip.style.transform = `translateY(-${move}px)`;
 
-        setTimeout(() => checkFinished(), 2100);
+        // 停止時的音效
+        setTimeout(() => AudioEngine.playStop(), 2000);
+        setTimeout(() => checkFinished(), 2200);
     }
 
     function checkFinished() {
-        if (results.every(r => r !== null)) {
-            document.getElementById('amount').innerText = Number(results.join('')).toLocaleString();
-            document.getElementById('resultArea').classList.remove('hidden');
-            document.getElementById('resultArea').classList.add('result-animation');
-            masterBtn.style.display = 'none';
-            
-            const end = Date.now() + 4000;
-            (function frame() {
-                confetti({ particleCount: 3, angle: 60, spread: 60, origin: { x: 0 }, colors: ['#ff4757', '#ffd700', '#2ecc71'] });
-                confetti({ particleCount: 3, angle: 120, spread: 60, origin: { x: 1 }, colors: ['#ff4757', '#ffd700', '#2ecc71'] });
-                if (Date.now() < end) requestAnimationFrame(frame);
-            }());
+        if (isProcessingResult || results.some(r => r === null)) return;
+        
+        isProcessingResult = true;
+        AudioEngine.playWin(); // 播放贏得大獎音效
+
+        const finalVal = results.join('');
+        document.getElementById('amount').innerText = Number(finalVal).toLocaleString();
+        document.getElementById('resultArea').classList.remove('hidden');
+        masterBtn.style.display = 'none';
+        
+        addHistory(finalVal);
+
+        const end = Date.now() + 3000;
+        (function frame() {
+            confetti({ particleCount: 3, angle: 60, spread: 60, origin: { x: 0 }, colors: ['#ff4757', '#ffd700'] });
+            confetti({ particleCount: 3, angle: 120, spread: 60, origin: { x: 1 }, colors: ['#ff4757', '#ffd700'] });
+            if (Date.now() < end) requestAnimationFrame(frame);
+        }());
+    }
+
+    function addHistory(val) {
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        const record = {
+            time: timeStr,
+            name: config.name,
+            topic: config.topic,
+            amount: Number(val).toLocaleString(),
+            unit: config.unit
+        };
+        historyData.unshift(record);
+        renderHistory();
+    }
+
+    function renderHistory() {
+        if (historyData.length === 0) {
+            historyList.innerHTML = '<p class="text-center text-gray-400 text-xs py-4">目前尚無紀錄</p>';
+            return;
         }
+        historyList.innerHTML = historyData.map(item => `
+            <div class="history-item">
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-gray-400">${item.time}</span>
+                    <span class="font-bold text-gray-600">${item.name} (${item.topic})</span>
+                </div>
+                <div class="text-pink-500 font-black">
+                    $${item.amount} ${item.unit}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function handleClearHistory() {
+        if (!clearConfirmMode) {
+            clearConfirmMode = true;
+            clearBtn.innerText = "確定清空？";
+            clearBtn.classList.remove('text-gray-400', 'bg-gray-100');
+            clearBtn.classList.add('text-white', 'bg-red-500');
+            setTimeout(() => resetClearBtn(), 3000);
+        } else {
+            historyData = [];
+            renderHistory();
+            resetClearBtn();
+        }
+    }
+
+    function resetClearBtn() {
+        clearConfirmMode = false;
+        clearBtn.innerText = "清空紀錄";
+        clearBtn.classList.add('text-gray-400', 'bg-gray-100');
+        clearBtn.classList.remove('text-white', 'bg-red-500');
     }
 
     function resetToSetup() {
         gameView.classList.add('hidden');
         setupView.classList.remove('hidden');
-        masterBtn.style.display = 'block';
-        masterBtn.disabled = false;
     }
     
     updateVipVisibility();
