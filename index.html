@@ -32,7 +32,6 @@
             max-width: 800px;
         }
 
-        /* 核心：確保所有位數橫向一排 */
         .slot-machine-grid {
             display: flex;
             justify-content: center;
@@ -80,7 +79,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem; /* 預設小字以適應多位數 */
+            font-size: 1.2rem;
             font-weight: bold;
             color: #ff4757;
         }
@@ -92,7 +91,7 @@
             padding: 5px 0;
             border-radius: 4px;
             font-weight: bold;
-            font-size: 10px; /* 手機版極小字 */
+            font-size: 10px;
             cursor: pointer;
             border: none;
             box-shadow: 0 3px 0 #c0392b;
@@ -137,9 +136,13 @@
 <div class="container-box">
     <!-- 設定階段 -->
     <div id="setupView" class="config-ui">
-        <h2 class="title text-center">慶生拉霸配置</h2>
+        <h2 class="title text-center">抽獎配置設定</h2>
         <div class="flex flex-col">
-            <label class="text-gray-600 font-bold mb-1">主角名字：</label>
+            <label class="text-gray-600 font-bold mb-1">活動主題名稱：</label>
+            <input type="text" id="eventTopic" placeholder="例如：生日、父親節、情人節" value="生日">
+        </div>
+        <div class="flex flex-col">
+            <label class="text-gray-600 font-bold mb-1">對象名字：</label>
             <input type="text" id="targetName" placeholder="例如：映潔" value="映潔">
         </div>
         <div class="flex flex-col">
@@ -157,7 +160,7 @@
 
     <!-- 遊戲階段 -->
     <div id="gameView" class="hidden">
-        <div class="title">生日幸運拉霸 ❤</div>
+        <div class="title" id="mainTitleDisplay">幸運拉霸 ❤</div>
         <p class="text-gray-600 mb-2" id="displaySubtitle"></p>
         
         <div class="slot-machine-grid" id="slotGrid"></div>
@@ -166,7 +169,7 @@
             <div class="text-xl font-bold text-pink-600 mb-2">
                 🎉 恭喜<span id="resName"></span>獲得現金：$<span id="amount">0</span> 元！ 🎉
             </div>
-            <div class="text-2xl font-extrabold text-red-500 tracking-widest">🎂 生日快樂 🎂</div>
+            <div class="text-2xl font-extrabold text-red-500 tracking-widest" id="finalWishes"></div>
         </div>
 
         <button onclick="resetToSetup()" class="mt-8 text-gray-400 underline text-xs">重新設定條件</button>
@@ -190,7 +193,7 @@
         digitSelect.appendChild(opt);
     }
 
-    let config = { name: "", digits: 5, lockFirst: true };
+    let config = { topic: "", name: "", digits: 5, lockFirst: true };
     let results = [];
 
     function updateVipVisibility() {
@@ -199,6 +202,7 @@
     }
 
     function enterGame() {
+        config.topic = document.getElementById('eventTopic').value || "活動";
         config.name = document.getElementById('targetName').value || "主角";
         config.digits = parseInt(digitSelect.value);
         config.lockFirst = document.getElementById('lockFirstDigit').checked && config.digits > 1;
@@ -206,8 +210,11 @@
         setupView.classList.add('hidden');
         gameView.classList.remove('hidden');
         
-        document.getElementById('displaySubtitle').innerText = `${config.name}，抽個大紅包吧！`;
+        // 更新 UI
+        document.getElementById('mainTitleDisplay').innerText = `${config.topic}幸運拉霸 ❤`;
+        document.getElementById('displaySubtitle').innerText = `${config.name}，挑戰你的 ${config.topic} 手氣！`;
         document.getElementById('resName').innerText = config.name;
+        document.getElementById('finalWishes').innerText = `🎂 ${config.topic}快樂 🎂`;
         
         initGame();
     }
@@ -230,7 +237,6 @@
             strip.className = 'number-strip';
             strip.id = `strip-${i}`;
             
-            // 生成數字
             for (let r = 0; r < 40; r++) {
                 for (let d = 0; d <= 9; d++) {
                     const dDiv = document.createElement('div');
