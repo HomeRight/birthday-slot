@@ -3,14 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>萬用客製化幸運拉霸機</title>
+    <title>萬用客製化幸運拉霸機 Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap');
 
+        :root {
+            --primary-color: #ff4757;
+            --bg-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+        }
+
         body {
-            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            background: var(--bg-gradient);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -19,6 +24,7 @@
             margin: 0;
             padding: 10px;
             overflow-x: hidden;
+            transition: background 0.5s ease;
         }
 
         .container-box {
@@ -36,12 +42,13 @@
             display: flex;
             justify-content: center;
             gap: 4px;
-            background: #333;
-            padding: 8px;
+            background: #222;
+            padding: 12px 8px;
             border-radius: 1rem;
-            margin: 1.5rem 0;
+            margin: 1rem 0;
             border: 4px solid #ffd700;
             width: 100%;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
         }
 
         .reel-container {
@@ -49,21 +56,22 @@
             min-width: 0;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 8px;
         }
 
         .reel {
             width: 100%;
-            height: 50px;
+            height: 60px;
             background: white;
-            border-radius: 4px;
+            border-radius: 6px;
             overflow: hidden;
             position: relative;
+            border: 1px solid #ddd;
         }
 
         @media (min-width: 640px) {
-            .reel { height: 80px; }
-            .digit { font-size: 2.5rem !important; height: 80px !important; }
+            .reel { height: 100px; }
+            .digit { font-size: 3rem !important; height: 100px !important; }
         }
 
         .number-strip {
@@ -75,60 +83,61 @@
         }
 
         .digit {
-            height: 50px;
+            height: 60px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #ff4757;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--primary-color);
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
         }
 
         .btn-individual {
-            background: #ff4757;
+            background: var(--primary-color);
             color: white;
             width: 100%;
-            padding: 5px 0;
-            border-radius: 4px;
+            padding: 6px 0;
+            border-radius: 6px;
             font-weight: bold;
             font-size: 10px;
             cursor: pointer;
             border: none;
             box-shadow: 0 3px 0 #c0392b;
-            white-space: nowrap;
-        }
-
-        @media (min-width: 640px) {
-            .btn-individual { font-size: 0.8rem; padding: 8px 0; }
+            transition: all 0.1s;
         }
 
         .btn-individual:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #c0392b; }
-        .btn-individual:disabled { background: #ccc; box-shadow: 0 3px 0 #999; cursor: not-allowed; opacity: 0.7; }
+        .btn-individual:disabled { background: #666; box-shadow: 0 3px 0 #444; cursor: not-allowed; opacity: 0.7; }
 
-        .title { font-family: 'ZCOOL KuaiLe', cursive; color: #ff4757; font-size: 1.8rem; }
+        .title { font-family: 'ZCOOL KuaiLe', cursive; color: var(--primary-color); font-size: 2rem; }
         
-        .result-animation {
-            animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        .config-ui { display: flex; flex-direction: column; gap: 0.8rem; text-align: left; }
+        input, select { padding: 0.7rem; border: 2px solid #ffdde1; border-radius: 0.8rem; outline: none; transition: border 0.3s; }
+        input:focus { border-color: var(--primary-color); }
+
+        /* 旋轉動畫狀態 */
+        .is-spinning {
+            animation: blurText 0.1s infinite alternate;
+        }
+        @keyframes blurText {
+            from { filter: blur(0px); }
+            to { filter: blur(2px); }
         }
 
-        @keyframes bounceIn {
-            0% { transform: scale(0.3); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+        .main-action-btn {
+            background: #27ae60;
+            color: white;
+            font-weight: 900;
+            padding: 1rem;
+            border-radius: 1rem;
+            width: 100%;
+            font-size: 1.2rem;
+            margin-top: 10px;
+            box-shadow: 0 5px 0 #1e8449;
         }
-
-        .config-ui {
-            display: flex;
-            flex-direction: column;
-            gap: 0.8rem;
-            text-align: left;
-        }
-        
-        input, select {
-            padding: 0.6rem;
-            border: 2px solid #ffdde1;
-            border-radius: 0.6rem;
-            outline: none;
-        }
+        .main-action-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #1e8449; }
+        .main-action-btn.stop { background: #e67e22; box-shadow: 0 5px 0 #d35400; }
     </style>
 </head>
 <body>
@@ -136,26 +145,32 @@
 <div class="container-box">
     <!-- 設定階段 -->
     <div id="setupView" class="config-ui">
-        <h2 class="title text-center">抽獎配置設定</h2>
-        <div class="flex flex-col">
-            <label class="text-gray-600 font-bold mb-1">活動主題名稱：</label>
-            <input type="text" id="eventTopic" placeholder="例如：生日、父親節、情人節" value="生日">
+        <h2 class="title text-center">🎰 萬用拉霸配置</h2>
+        <div class="grid grid-cols-2 gap-3">
+            <div class="flex flex-col">
+                <label class="text-gray-600 font-bold mb-1">主題：</label>
+                <input type="text" id="eventTopic" value="生日">
+            </div>
+            <div class="flex flex-col">
+                <label class="text-gray-600 font-bold mb-1">對象：</label>
+                <input type="text" id="targetName" value="映潔">
+            </div>
         </div>
-        <div class="flex flex-col">
-            <label class="text-gray-600 font-bold mb-1">對象名字：</label>
-            <input type="text" id="targetName" placeholder="例如：映潔" value="映潔">
+        <div class="grid grid-cols-2 gap-3">
+            <div class="flex flex-col">
+                <label class="text-gray-600 font-bold mb-1">位數：</label>
+                <select id="digitCount" onchange="updateVipVisibility()"></select>
+            </div>
+            <div class="flex flex-col">
+                <label class="text-gray-600 font-bold mb-1">單位：</label>
+                <input type="text" id="unitName" value="元">
+            </div>
         </div>
-        <div class="flex flex-col">
-            <label class="text-gray-600 font-bold mb-1">金額位數 (1-10)：</label>
-            <select id="digitCount" onchange="updateVipVisibility()">
-                <!-- JS 動態生成 -->
-            </select>
-        </div>
-        <div id="vipOption" class="flex items-center gap-2">
+        <div id="vipOption" class="flex items-center gap-2 bg-pink-50 p-2 rounded-lg">
             <input type="checkbox" id="lockFirstDigit" checked>
-            <label for="lockFirstDigit" class="text-pink-600 text-sm font-bold cursor-pointer">首位固定為 1 (保底必中)</label>
+            <label for="lockFirstDigit" class="text-pink-600 text-sm font-bold cursor-pointer">首位保底 (固定為 1)</label>
         </div>
-        <button onclick="enterGame()" class="bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition shadow-lg mt-2">進入拉霸模式</button>
+        <button onclick="enterGame()" class="bg-pink-500 text-white font-bold py-4 rounded-2xl hover:bg-pink-600 transition shadow-xl mt-2 text-lg">設定完成，開始抽獎！</button>
     </div>
 
     <!-- 遊戲階段 -->
@@ -165,14 +180,19 @@
         
         <div class="slot-machine-grid" id="slotGrid"></div>
 
-        <div id="resultArea" class="hidden mt-4 result-animation">
-            <div class="text-xl font-bold text-pink-600 mb-2">
-                🎉 恭喜<span id="resName"></span>獲得現金：$<span id="amount">0</span> 元！ 🎉
+        <button id="masterBtn" onclick="toggleMasterSpin()" class="main-action-btn">一鍵全部開始</button>
+
+        <div id="resultArea" class="hidden mt-4 p-4 bg-yellow-50 rounded-2xl border-2 border-yellow-200">
+            <div class="text-xl font-bold text-pink-600 mb-1">
+                🎉 恭喜<span id="resName"></span>獲得<span id="resTopic"></span>：
             </div>
-            <div class="text-2xl font-extrabold text-red-500 tracking-widest" id="finalWishes"></div>
+            <div class="text-3xl font-black text-red-500 my-2">
+                <span id="amount">0</span> <span class="resUnit">元</span>
+            </div>
+            <div class="text-xl font-bold text-orange-500" id="finalWishes"></div>
         </div>
 
-        <button onclick="resetToSetup()" class="mt-8 text-gray-400 underline text-xs">重新設定條件</button>
+        <button onclick="resetToSetup()" class="mt-6 text-gray-400 underline text-xs">返回修改設定</button>
     </div>
 </div>
 
@@ -181,40 +201,41 @@
     const gameView = document.getElementById('gameView');
     const slotGrid = document.getElementById('slotGrid');
     const digitSelect = document.getElementById('digitCount');
+    const masterBtn = document.getElementById('masterBtn');
     
     const LABELS = ["十億", "億", "千萬", "百萬", "十萬", "萬", "千", "百", "十", "個"];
+    let config = { topic: "", name: "", unit: "", digits: 5, lockFirst: true };
+    let results = [];
+    let isMasterSpinning = false;
 
-    // 初始化選項
+    // 初始化下拉
     for(let i=1; i<=10; i++) {
         const opt = document.createElement('option');
-        opt.value = i;
-        opt.innerText = `${i} 位數`;
+        opt.value = i; opt.innerText = `${i} 位數`;
         if(i === 5) opt.selected = true;
         digitSelect.appendChild(opt);
     }
 
-    let config = { topic: "", name: "", digits: 5, lockFirst: true };
-    let results = [];
-
     function updateVipVisibility() {
-        const count = parseInt(digitSelect.value);
-        document.getElementById('vipOption').style.display = (count > 1) ? "flex" : "none";
+        document.getElementById('vipOption').style.display = (parseInt(digitSelect.value) > 1) ? "flex" : "none";
     }
 
     function enterGame() {
         config.topic = document.getElementById('eventTopic').value || "活動";
         config.name = document.getElementById('targetName').value || "主角";
+        config.unit = document.getElementById('unitName').value || "元";
         config.digits = parseInt(digitSelect.value);
         config.lockFirst = document.getElementById('lockFirstDigit').checked && config.digits > 1;
         
         setupView.classList.add('hidden');
         gameView.classList.remove('hidden');
         
-        // 更新 UI
         document.getElementById('mainTitleDisplay').innerText = `${config.topic}幸運拉霸 ❤`;
-        document.getElementById('displaySubtitle').innerText = `${config.name}，挑戰你的 ${config.topic} 手氣！`;
+        document.getElementById('displaySubtitle').innerText = `祝 ${config.name} ${config.topic}快樂！`;
         document.getElementById('resName').innerText = config.name;
-        document.getElementById('finalWishes').innerText = `🎂 ${config.topic}快樂 🎂`;
+        document.getElementById('resTopic').innerText = config.topic + "獎勵";
+        document.querySelectorAll('.resUnit').forEach(el => el.innerText = config.unit);
+        document.getElementById('finalWishes').innerText = `✨ ${config.topic}大吉 ✨`;
         
         initGame();
     }
@@ -222,6 +243,9 @@
     function initGame() {
         slotGrid.innerHTML = '';
         results = new Array(config.digits).fill(null);
+        isMasterSpinning = false;
+        masterBtn.innerText = "一鍵全部開始";
+        masterBtn.className = "main-action-btn";
         document.getElementById('resultArea').classList.add('hidden');
         
         const currentLabels = LABELS.slice(LABELS.length - config.digits);
@@ -232,7 +256,6 @@
             
             const reel = document.createElement('div');
             reel.className = 'reel';
-            
             const strip = document.createElement('div');
             strip.className = 'number-strip';
             strip.id = `strip-${i}`;
@@ -250,12 +273,7 @@
             btn.className = 'btn-individual';
             btn.id = `btn-${i}`;
             btn.innerText = currentLabels[i];
-            
-            if (i === 0 && config.lockFirst) {
-                btn.onclick = () => spinDigit(i, 1);
-            } else {
-                btn.onclick = () => spinDigit(i);
-            }
+            btn.onclick = () => spinDigit(i, (i===0 && config.lockFirst) ? 1 : null);
             
             reel.appendChild(strip);
             container.appendChild(reel);
@@ -264,33 +282,82 @@
         }
     }
 
+    function toggleMasterSpin() {
+        if (!isMasterSpinning) {
+            // 開始全部旋轉
+            isMasterSpinning = true;
+            masterBtn.innerText = "全部停止！";
+            masterBtn.classList.add('stop');
+            
+            for (let i = 0; i < config.digits; i++) {
+                const strip = document.getElementById(`strip-${i}`);
+                strip.classList.add('is-spinning');
+                // 無限滾動效果
+                strip.style.transition = 'transform 0.5s linear';
+                strip.style.transform = `translateY(-${20 * getReelHeight()}px)`;
+                
+                // 為了流暢感，每隔一段時間重置位置的監聽
+                strip.ontransitionend = () => {
+                    if (results[i] === null) {
+                        strip.style.transition = 'none';
+                        strip.style.transform = 'translateY(0)';
+                        setTimeout(() => {
+                            strip.style.transition = 'transform 0.5s linear';
+                            strip.style.transform = `translateY(-${20 * getReelHeight()}px)`;
+                        }, 10);
+                    }
+                };
+            }
+        } else {
+            // 按序停止
+            isMasterSpinning = false;
+            masterBtn.disabled = true;
+            stopSequentially(0);
+        }
+    }
+
+    function stopSequentially(idx) {
+        if (idx >= config.digits) return;
+        spinDigit(idx, (idx===0 && config.lockFirst) ? 1 : null);
+        setTimeout(() => stopSequentially(idx + 1), 300);
+    }
+
+    function getReelHeight() {
+        return document.querySelector('.reel').offsetHeight;
+    }
+
     function spinDigit(idx, fixedValue = null) {
-        if (results[idx] !== null) return;
+        if (results[idx] !== null && !isMasterSpinning) return;
         
         const btn = document.getElementById(`btn-${idx}`);
         const strip = document.getElementById(`strip-${idx}`);
-        const h = document.querySelector('.reel').offsetHeight;
+        const h = getReelHeight();
         
         btn.disabled = true;
         const target = (fixedValue !== null) ? fixedValue : Math.floor(Math.random() * 10);
         results[idx] = target;
         
-        const move = (300 + target) * h;
-        strip.style.transition = 'transform 2.5s cubic-bezier(0.15, 0, 0.15, 1)';
+        strip.classList.remove('is-spinning');
+        strip.ontransitionend = null;
+        
+        const move = (350 + target) * h;
+        strip.style.transition = 'transform 2s cubic-bezier(0.15, 0, 0.15, 1)';
         strip.style.transform = `translateY(-${move}px)`;
 
-        setTimeout(() => checkFinished(), 2600);
+        setTimeout(() => checkFinished(), 2100);
     }
 
     function checkFinished() {
         if (results.every(r => r !== null)) {
             document.getElementById('amount').innerText = Number(results.join('')).toLocaleString();
             document.getElementById('resultArea').classList.remove('hidden');
+            document.getElementById('resultArea').classList.add('result-animation');
+            masterBtn.style.display = 'none';
             
-            const end = Date.now() + 3000;
+            const end = Date.now() + 4000;
             (function frame() {
-                confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#ff4757', '#ffd700'] });
-                confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#ff4757', '#ffd700'] });
+                confetti({ particleCount: 3, angle: 60, spread: 60, origin: { x: 0 }, colors: ['#ff4757', '#ffd700', '#2ecc71'] });
+                confetti({ particleCount: 3, angle: 120, spread: 60, origin: { x: 1 }, colors: ['#ff4757', '#ffd700', '#2ecc71'] });
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
         }
@@ -299,6 +366,8 @@
     function resetToSetup() {
         gameView.classList.add('hidden');
         setupView.classList.remove('hidden');
+        masterBtn.style.display = 'block';
+        masterBtn.disabled = false;
     }
     
     updateVipVisibility();
